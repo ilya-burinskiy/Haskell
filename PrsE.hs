@@ -24,4 +24,10 @@ instance Applicative PrsE where
     (val, strRem') <- runPrsE parser strRem
     return (f val, strRem')
 
+instance Monad PrsE where
+  m >>= k = PrsE $ \str ->
+    case runPrsE m str of
+      (Right (result, strRem)) -> runPrsE (k result) strRem
+      (Left error) -> Left error
+
 charE c = satisfyE (== c)
