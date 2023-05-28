@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 import Data.Text.Internal.Read (IParser(runP))
-import Control.Applicative (Alternative)
+import Control.Applicative (Alternative, empty, (<|>))
 
 newtype Prs a = Prs { runPrs :: String -> Maybe (a, String) }
 
@@ -18,7 +18,7 @@ instance Applicative Prs where
     return (f val, strRem')
 
 instance Alternative Prs where
-  empty = Prs $ \_ -> Nothing
+  empty = Prs $ const Nothing
   p1 <|> p2 = Prs $ \str ->
     case runPrs p1 str of
       Just (val, strRem) -> Just (val, strRem)
