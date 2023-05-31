@@ -2,6 +2,7 @@ import Control.Monad (liftM, ap, MonadPlus(mzero, mplus), guard, msum)
 import Control.Applicative (Alternative(empty, (<|>)))
 
 newtype Except e a = Except { runExcept :: Either e a } deriving (Eq, Show)
+data ReadError = EmptyInput | NoParse String deriving Show
 
 instance Functor (Except e) where
   fmap = liftM
@@ -44,3 +45,15 @@ catchE m h =
   case runExcept m of
     Left e -> h e
     Right r -> except $ Right r
+
+tryRead :: Read a => String -> Except ReadError a
+tryRead str =
+  case str of
+    [] -> throwE EmptyInput
+    _ ->
+      case reads str of
+        [(parsed, strRem)] ->
+          case strRem of
+            "" -> return parsed
+            _  -> throwE $ NoParse str
+        [] -> throwE $ NoParse "wrong"
