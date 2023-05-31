@@ -3,6 +3,7 @@ import Control.Applicative (Alternative(empty, (<|>)))
 
 newtype Except e a = Except { runExcept :: Either e a } deriving (Eq, Show)
 data ReadError = EmptyInput | NoParse String deriving Show
+data SumError = SumError Int ReadError deriving Show
 
 instance Functor (Except e) where
   fmap = liftM
@@ -57,3 +58,11 @@ tryRead str =
             "" -> return parsed
             _  -> throwE $ NoParse str
         [] -> throwE $ NoParse "wrong"
+
+trySum :: [String] -> Except SumError Integer
+trySum nums =
+  fmap
+    (foldr (+) 0)
+    (mapM
+      (\ (idx, numStr) -> withExcept (SumError idx) (tryRead numStr))
+      (zip [1..] nums))
