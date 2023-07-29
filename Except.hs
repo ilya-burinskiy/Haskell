@@ -1,3 +1,5 @@
+module Except (Except (..)) where
+
 import Control.Monad (liftM, ap, MonadPlus(mzero, mplus), guard, msum)
 import Control.Applicative (Alternative(empty, (<|>)))
 
