@@ -24,3 +24,6 @@ toFailCont except = FailCont $
 
 evalFailCont :: FailCont (Either e a) e a -> Either e a
 evalFailCont (FailCont v) = v Right Left
+
+callCFC :: ((a -> FailCont r e b) -> FailCont r e a) -> FailCont r e a
+callCFC f = FailCont $ \ok err -> runFailCont (f (\a -> FailCont $ \_ _ -> ok a)) ok err
