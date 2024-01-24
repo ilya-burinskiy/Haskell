@@ -1,30 +1,26 @@
-import Control.Monad.Writer.Lazy
 import Control.Monad.Reader
+import Control.Monad.Writer.Lazy
 import Data.Char (toUpper)
 
-type MyRWT m a = ReaderT [String] (Writer String) (m a)
+type MyRWT m = ReaderT [String] (WriterT String m)
 
-runMyRWT :: ReaderT r m a -> r -> m a
-runMyRWT = runReaderT
+runMyRWT :: MyRWT m a -> [String] -> m (a, String)
+runMyRWT t r = runWriterT (runReaderT t r)
 
-myAsks :: Monad m => ([String] -> m a) -> MyRWT m a
+myAsks :: (Monad m) => ([String] -> a) -> MyRWT m a
 myAsks = asks
 
-myTell :: Monad m => String -> MyRWT m ()
-myTell = fmap return . tell
+myTell :: (Monad m) => String -> MyRWT m ()
+myTell = lift . tell
 
-myLift :: Monad m => m a -> ReaderT [String] (Writer String) (m a)
-myLift m = ReaderT (m >>= \ x -> return (return x))
+myLift :: (Monad m) => m a -> MyRWT m a
+myLift = lift . lift
 
-logFirstAndRetSecond = do
+logFirstAndRetSecond' :: MyRWT IO String
+logFirstAndRetSecond' = do
   el1 <- myAsks head
-  --myLift $ putStrLn $ "First is " ++ show el1
-  el2 <- asks (map toUpper . head . tail)
-  --myLift $ putStrLn $ "Second is " ++ show el2
-  tell el1
-  return el2
-
-{-
-myAsks :: ([String] -> a) -> MyRW a
-myTell :: String -> ReaderT [String] (Writer String) ()
--}
+  myLift (putStrLn ("First is " ++ show el1))
+  el2 <- myAsks (map toUpper . head . tail)
+  myLift (putStrLn $ "Second is " ++ show el2)
+  myTell el1
+  return el1
