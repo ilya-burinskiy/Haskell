@@ -164,4 +164,51 @@ square n = callCC $ \k -> k (n*n)
 = Cont $ \k -> runCont (Cont $ \_ -> k (n*n)) k
 = Cont $ \k -> (\_ -> k (n*n)) k
 = Cont $ \k -> k (n*n)
+
+-- c first suspended computation
+-- f function that accepts x :: a and returns second suspended computation
+-- k :: b -> r
+-- c :: (a -> r) -> r
+-- (\x -> ...) :: (a -> ...) => x :: a
+-- f x :: (b -> r) -> r
+-- k (f x) ::
+chainCPS :: ((a -> r) -> r) -> (a -> ((b -> r) -> r)) -> ((b -> r) -> r)
+chainCPS c f = \k -> c (\x -> f x k)
+
+-- cont :: (a -> ((b -> r) -> r)) -> ((a -> r) -> r)
+callCC :: ((a -> ((b -> r) -> r)) -> ((a -> r) -> r))
+          -> ((a -> r) -> r)
+callCC f = \outerCont ->
+    f (\a -> \_ignoredCont -> outerCont a) outerCont
+
+addCPS :: Int -> Int -> ((Int -> r) -> r)
+addCPS a b = \k -> k (a + b)
+
+squareCPS :: Int -> ((Int -> r) -> r)
+squareCPS x = \k -> k (x * x)
+
+pythagorasCPS :: Int -> Int -> ((Int -> r) -> r)
+pythagorasCPS x y =
+    squareCPS x `chainCPS` \xx ->
+    squareCPS y `chainCPS` \yy ->
+    addCPS xx yy
+
+addTens x1 = \checkpoint ->
+    checkpoint x1 `chainCPS` \x1 ->
+    let x2 = x1 + 10
+     in checkpoint x2 `chainCPS` \x2 ->
+     let x3 = x2 + 10
+      in checkpoint x3 `chainCPS` \x3 ->
+      let x4 = x3 + 10
+       in \c -> c x4
+
+runCheckpointed pred checkpointed =
+    callCC
+        (\yield -> checkpointed (\x -> if pred x then (\c -> c x) else yield x))
+        id
+
+
+main :: IO ()
+main = do
+   print (runCheckpointed (< 30) (addTens 1))
 -}
