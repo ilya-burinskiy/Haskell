@@ -1,34 +1,27 @@
-import Control.Monad.Trans.Cont (runContT, ContT, callCC)
+import Control.Monad.Trans.Cont (runContT, ContT(..), callCC)
 import Control.Monad.Writer
 
-{-
- - callCC :: ((a -> Cont r b) -> Cont r a) -> Cont r a
- - continue :: a -> Cont r b
- - yield :: ContT () (Writer String) ()
- - runContT coro2 :: (Writer String () -> ()) -> ()
- - -}
-coro1 :: ContT () (Writer String) ()
-coro1 = do
-    callCC $ \continue -> coro2 continue
-    lift $ tell "1 "
-    lift $ tell "3 "
-    lift $ tell "5"
-    return ()
+coro1 :: ((ContT r (Writer String) ())
+          -> ContT r (Writer String) ())
+         -> ContT r (Writer String) (ContT r (Writer String) ())
+coro1 yield = do
+    lift $ tell "1"
+    callCC $ \resume -> yield (resume ())
+    lift $ tell "2"
+    return $ ContT $ \c -> c ()
 
-coro2 :: (() -> ContT () (Writer String) ())
-         -> ContT () (Writer String) ()
+coro2 :: ((ContT r (Writer String) ())
+          -> ContT r (Writer String) ())
+         -> ContT r (Writer String) (ContT r (Writer String) ())
 coro2 yield = do
-    lift $ tell "2 "
-    lift $ tell "4 "
-    yield ()
-    lift $ tell "6"
-    return ()
+    lift $ tell "a"
+    lift $ tell "b"
+    callCC $ \resume -> yield (resume ())
+    lift $ tell "c"
+    return $ ContT $ \c -> c ()
 
--- runCoros :: ContT () (Writer String) ()
---             -> Cont () (Writer String) ()
---             -> String
--- runCoros coro1 coro2 = coro1 coro
-    
-
--- main :: IO ()
--- main = print $ execWriter $ runContT coro1 coro2 (\_ -> tell "")
+runCoros = (execWriter . (`runContT` (\_ -> tell ""))) $ do
+    coro1Cont <- callCC coro1
+    coro2Cont <- callCC coro2
+    coro1Cont
+    coro2Cont
