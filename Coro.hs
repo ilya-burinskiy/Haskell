@@ -15,17 +15,6 @@ newtype CoroutineT m a = CoroutineT {
 instance Functor (CoroutineT m) where
     fmap f (CoroutineT cont) = CoroutineT $ fmap f cont
 
-{-
-    (((a -> b) -> r) -> r) af
-    -> ((a -> r) -> r)     av
-    -> (b -> r) -> r
-
-    c :: b -> r
-    runCont av :: (a -> r) -> r
-    runCont av (\a -> f a)
-    Cont r (a -> b) -> Cont r a -> Cont r b
-    af <*> av = Cont $ \c -> runCont af (\f -> runCont av (\a -> c $ f a))
--}
 instance Applicative (CoroutineT m) where
     pure = CoroutineT . pure
     (<*>) (CoroutineT af) (CoroutineT av) = CoroutineT $ af <*> av
@@ -38,16 +27,13 @@ instance MonadTrans CoroutineT where
     lift :: Monad m => m a -> CoroutineT m a
     lift m = CoroutineT $ lift $ lift m
 
--- ((a -> CoroutineT m b) -> CoroutineT m a) -> CoroutineT m a
 instance MonadCont (CoroutineT m) where
-    -- callCC ((a -> ContT () m b) -> ContT () m a) -> ContT m a
     callCC :: ((a -> CoroutineT m b) -> CoroutineT m a) -> CoroutineT m a
     callCC f = CoroutineT $ callCC $ (\exit -> runCoroutineT $ f (\a -> CoroutineT (exit a)))
 
 instance (MonadWriter w m) => MonadWriter w (CoroutineT m) where
     tell :: w -> CoroutineT m ()
     tell w = CoroutineT $ lift $ lift $ tell w
-
     listen = undefined
     pass = undefined
 
@@ -102,3 +88,17 @@ runCoroutines :: Monad m => CoroutineT m () -> CoroutineT m () -> m ()
 runCoroutines coro1 coro2 = (flip evalStateT [] . flip runContT return . runCoroutineT . (<* exhaust)) $ do
     fork coro1
     fork coro2
+    
+coroutine1 :: CoroutineT (Writer String) ()
+coroutine1 = do
+  tell "1"
+  yield
+  tell "2"
+
+coroutine2 :: CoroutineT (Writer String) ()
+coroutine2 = do
+  tell "a"
+  yield
+  tell "b"
+
+main = print $ runCoroutines coroutine1 coroutine2
